@@ -9,37 +9,47 @@ Monorepo for the CampusOS college ERP, matching the stack decided in
 apps/api    NestJS backend (TypeScript) - REST API, Drizzle ORM, PostgreSQL
 apps/web    Next.js frontend (TypeScript, Tailwind, shadcn/ui)
 infra/      Infrastructure-as-code (Terraform) - added later
-docker-compose.yml   Local dev services: Postgres, Redis, RabbitMQ, Keycloak, MinIO
 ```
 
 ## Prerequisites
 
 - Node.js 24 LTS
-- Docker Desktop with WSL2 backend (Windows: `wsl --install --no-distro` as
-  Administrator, then restart, then open Docker Desktop once)
+- PostgreSQL 16, installed natively (no Docker/WSL needed for local dev):
+  ```powershell
+  winget install -e --id PostgreSQL.PostgreSQL.16
+  ```
+
+No Docker Desktop is required. Redis, RabbitMQ, object storage and Keycloak
+are not wired up yet — those are only needed for features not yet built
+(caching, async notifications, file storage, SSO). When ready to add them,
+point straight at managed cloud services (AWS ElastiCache/Amazon MQ/S3/
+Cognito, or their Azure equivalents) rather than running anything extra
+locally — see `.env.example` for the mapping.
 
 ## First-time setup
 
-```bash
-npm install                # installs both apps via npm workspaces
-docker compose up -d       # starts Postgres, Redis, RabbitMQ, Keycloak, MinIO
-npm run db:setup           # runs schema migrations + Row-Level Security policies
+```powershell
+# 1. Create the project database + superuser role (one-time, via psql)
+$env:PGPASSWORD = "postgres"   # the default password winget's silent installer set
+psql -U postgres -h localhost -c "create role campusos with login superuser password 'campusos_dev';"
+psql -U postgres -h localhost -c "create database campusos owner campusos;"
+
+# 2. Install dependencies (npm workspaces)
+npm install
+
+# 3. Copy env file for the API
+Copy-Item apps/api/.env.example apps/api/.env
+
+# 4. Run schema migrations + Row-Level Security policies
+npm run db:setup
 ```
 
 ## Day to day
 
 ```bash
-npm run dev:api    # http://localhost:3001
+npm run dev:api    # http://localhost:3001 (reads PORT from apps/api/.env)
 npm run dev:web    # http://localhost:3000
 ```
-
-Local service consoles once `docker compose up -d` is running:
-
-| Service          | URL                              | Login                          |
-|-------------------|-----------------------------------|---------------------------------|
-| RabbitMQ mgmt     | http://localhost:15672            | campusos / campusos_dev        |
-| Keycloak          | http://localhost:8080             | admin / admin_dev               |
-| MinIO console      | http://localhost:9001             | campusos / campusos_dev        |
 
 ## Database & multi-tenancy
 
@@ -56,9 +66,18 @@ npm run db:generate --workspace=api   # generate a new Drizzle migration from sr
 npm run db:setup                      # apply migrations + re-apply RLS policies
 ```
 
+## Deployment
+
+Production targets AWS (Section 13 of the requirements document): Aurora
+PostgreSQL, ElastiCache, Amazon MQ, EKS, S3 — all managed services, not
+containers you run yourself. Local development mirrors that by talking
+directly to a real Postgres instance rather than emulating the whole stack
+in Docker.
+
 ## Status
 
 Scaffolded: NestJS API + Next.js web, Drizzle schema for tenant/org/student
-(Section 10.6), RLS policies (Section 10.2), local Docker infra. Not yet
-built: authentication (Keycloak wiring), the 22 functional modules, mobile
-app. See the requirements document for the full module list and roadmap.
+(Section 10.6), RLS policies (Section 10.2), native local Postgres. Not yet
+built: authentication, the 22 functional modules, mobile app, cloud
+deployment. See the requirements document for the full module list and
+roadmap.
