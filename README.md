@@ -74,6 +74,13 @@ containers you run yourself. Local development mirrors that by talking
 directly to a real Postgres instance rather than emulating the whole stack
 in Docker.
 
+## Branching, releases & deployment
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) — `master` is protected and always
+deployable; all work happens on `dev/*` or `feature/*` branches merged in via
+PR; deploys are manual and ref-based, so any past tagged release can be
+redeployed on demand.
+
 ## Status
 
 Scaffolded: NestJS API + Next.js web, Drizzle schema for tenant/org/student

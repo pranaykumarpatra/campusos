@@ -1,0 +1,66 @@
+name: Deploy
+
+# Manually triggered from the Actions tab (or `gh workflow run deploy.yml`).
+# `ref` accepts a branch, a tag, or a raw commit SHA -- so deploying master is
+# just running this with the default, and rolling back to (or re-deploying)
+# any earlier feature is just running it again with that feature's tag or SHA.
+#
+# The actual cloud deploy steps are placeholders until AWS/Azure is connected
+# (see README). Build/typecheck already run for real, so a broken ref fails
+# here before anything would reach a real environment.
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch, tag, or commit SHA to deploy"
+        required: false
+        default: "master"
+      environment:
+        description: "Target environment"
+        required: true
+        default: "staging"
+        type: choice
+        options:
+          - staging
+          - production
+
+jobs:
+  deploy:
+    name: deploy
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build API
+        run: npm run build --workspace=api
+
+      - name: Build web
+        run: npm run build --workspace=web
+
+      - name: Record what was deployed
+        run: |
+          echo "Deployed ref: ${{ inputs.ref }}"
+          echo "Resolved commit: $(git rev-parse HEAD)"
+          echo "Environment: ${{ inputs.environment }}"
+
+      # --- Fill in once AWS/Azure is connected ---
+      # - name: Configure cloud credentials
+      #   uses: aws-actions/configure-aws-credentials@v4   # or azure/login@v2
+      #   with: { ... }
+      # - name: Deploy API
+      #   run: ...   # e.g. push image to ECR, update ECS/EKS service
+      # - name: Deploy web
+      #   run: ...   # e.g. sync to S3/CloudFront, or Vercel/Amplify deploy
+      - name: Placeholder -- no cloud target configured yet
+        run: echo "Build verified for ${{ inputs.ref }}. Wire up real deploy steps here once AWS/Azure is connected."
